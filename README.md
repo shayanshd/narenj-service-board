@@ -6,6 +6,8 @@ The product deliberately stops before checkout. The rationale, alternatives, and
 
 ## Open the demo
 
+Live Railway deployment: [https://narenj-production.up.railway.app](https://narenj-production.up.railway.app)
+
 The sign-in screen lists all three demonstration accounts:
 
 | Role | Email | Password |

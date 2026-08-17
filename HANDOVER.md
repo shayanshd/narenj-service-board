@@ -2,6 +2,8 @@
 
 This document is for the restaurant owner and shift manager.
 
+Open Narenj at [https://narenj-production.up.railway.app](https://narenj-production.up.railway.app).
+
 ## What has been delivered
 
 Narenj replaces the paper or spoken hand-off between the dining room and kitchen for table orders. A waiter can select a table and send a menu item with a quantity and short note. The kitchen sees the ticket, marks the item as being prepared, and marks it ready. The waiter sees that result on the table board. A manager can temporarily mark menu items unavailable and produce a shift handover summary.
