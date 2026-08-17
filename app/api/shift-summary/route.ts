@@ -1,4 +1,3 @@
-import { env } from "cloudflare:workers";
 import { ensureDatabase } from "../../../db/bootstrap";
 import { getD1 } from "../../../db";
 import { requireActor, AuthenticationError } from "../_lib/auth";
@@ -24,7 +23,7 @@ export async function POST(request: Request) {
     const actor = await requireActor(request);
     requireAction(actor, "view_shift_summary");
     const metrics = await getMetrics(actor.restaurantId, actor.branchId);
-    const runtimeEnv = env as unknown as { OPENAI_API_KEY?: string; OPENAI_MODEL?: string };
+    const runtimeEnv = process.env as { OPENAI_API_KEY?: string; OPENAI_MODEL?: string };
     if (!runtimeEnv.OPENAI_API_KEY) {
       return Response.json({ source: "fallback", reason: "provider_not_configured", metrics, summary: deterministicSummary(metrics) });
     }

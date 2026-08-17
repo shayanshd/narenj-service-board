@@ -24,15 +24,15 @@ Prerequisite: Node.js 22.13 or newer. From a fresh clone, one command installs d
 npm install && npm run dev
 ```
 
-Open `http://localhost:3000`. The local D1 database is migrated and seeded on its first API request.
+Open `http://localhost:3000`. The local SQLite database is migrated and seeded on its first API request.
 
 To enable the optional model-generated shift handover, copy `.env.example` to `.env.local` and set `OPENAI_API_KEY`. Without it, the manager still gets the same calculated metrics and a deterministic handover; ordering never depends on an AI provider.
 
 ## Architecture
 
 - **UI:** React 19 and vinext, responsive RTL Persian screens for floor, kitchen, menu availability, and shift handover.
-- **Runtime:** Cloudflare Worker-compatible server routes, with D1 declared in `.openai/hosting.json`.
-- **Data:** SQLite/D1 migrations generated from a Drizzle domain schema. Tenant-owned rows carry `restaurant_id`; operational rows also carry `branch_id`.
+- **Runtime:** Node.js server routes built with vinext and packaged in the repository's Dockerfile for Railway.
+- **Data:** SQLite migrations generated from a Drizzle domain schema. Railway stores the database in a persistent volume mounted at `/data`; WAL mode and a busy timeout protect a single application replica. Tenant-owned rows carry `restaurant_id`; operational rows also carry `branch_id`.
 - **Identity:** short-lived opaque session tokens are stored only as SHA-256 hashes. The HTTP-only, `SameSite=Strict` cookie resolves the actor, restaurant, branch, and role on the server.
 - **Writes:** narrow commands (`add_item`, `transition_item`, `set_availability`) replace whole-order saves. Additions use idempotency keys; updates use versions and return `409` on stale state.
 - **AI:** a manager-only endpoint sends bounded branch aggregates—not customer notes or raw order text—to a structured-output model. It uses a timeout, no response storage, schema validation, and a deterministic fallback.
@@ -62,13 +62,19 @@ I did not unit-test presentational CSS, the model's prose quality, or every brow
 
 Operational logs include request, actor, tenant, branch, action, outcome, and duration. They exclude passwords, tokens, kitchen notes, and AI prompt content.
 
+## Railway deployment
+
+Railway builds the checked-in `Dockerfile`. The service must have one persistent volume mounted at `/data`, with `NARENJ_SQLITE_PATH=/data/narenj.sqlite`. Keep the service at one replica: SQLite on one mounted volume is a deliberate first-release constraint, not a horizontally scalable database design. Railway supplies `PORT` automatically and `vinext start` binds to it.
+
+Set `OPENAI_API_KEY` as a Railway secret only if model-generated shift handovers are required. `OPENAI_MODEL` defaults to `gpt-4.1-mini`; without a key, the deterministic handover remains available.
+
 ## Repository guide
 
 - `db/schema.ts` — domain schema
 - `drizzle/` — forward migrations
 - `db/bootstrap.ts` — migration runner and realistic seed
+- `db/node-d1.ts` — small D1-shaped adapter over the Node SQLite driver
 - `app/api/` — session, product-command, and AI endpoints
 - `domain/` — authorization policy and state-machine validation
 - `tests/` — rendered output and full workflow proof
 - `SCOPE.md`, `DECISIONS.md`, `AI_USAGE.md`, `HANDOVER.md` — product and delivery reasoning
-

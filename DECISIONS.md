@@ -82,15 +82,15 @@ This is a living record. Each entry states the decision, why it was made, the st
 
 **Trade-off accepted:** During a complete connectivity loss, staff must use a documented manual fallback until devices can reach the service again.
 
-## D-009 — Would revisit: rely on application-enforced tenancy in D1
+## D-009 — Would revisit: rely on application-enforced tenancy in SQLite
 
-**Decision:** Keep D1 for the assessment deployment and enforce tenant isolation in the API with mandatory restaurant and branch predicates.
+**Decision:** Keep a single SQLite database on a persistent Railway volume and enforce tenant isolation in the API with mandatory restaurant and branch predicates.
 
-**Reason:** D1 fits the selected hosting path, gives a durable relational store with migrations, and allowed the workflow and negative isolation test to be completed inside the timebox.
+**Reason:** SQLite matches the domain schema already validated during development, gives a durable relational store with migrations, and keeps the deployed assessment reproducible without adding a second database migration project. WAL mode and explicit conflict handling are adequate for one small service replica.
 
 **Alternative considered:** PostgreSQL with database row-level security, using transaction-local tenant context and policies as a second boundary below the API.
 
-**Trade-off accepted:** The current test proves known cross-tenant IDs are denied, but the database cannot independently stop a future repository query that accidentally omits a tenant predicate. Before onboarding real restaurants, I would move to database-enforced row security or provide a data-access layer that makes unscoped queries impossible by construction.
+**Trade-off accepted:** The current test proves known cross-tenant IDs are denied, but the database cannot independently stop a future repository query that accidentally omits a tenant predicate. The volume also binds the service to one replica. Before onboarding real restaurants, I would move to PostgreSQL row-level security or provide a data-access layer that makes unscoped queries impossible by construction.
 
 ## D-010 — Would revisit: use 15-second polling for coordination
 
@@ -111,4 +111,3 @@ This is a living record. Each entry states the decision, why it was made, the st
 **Alternative considered:** A managed identity provider with invitation, recovery, revocation, rate limits, multi-factor authentication, and audit hooks.
 
 **Trade-off accepted:** The current credentials and password comparison are demonstration infrastructure, not a production identity lifecycle. This was correct for reviewability but wrong for real customer data; production onboarding must replace it rather than extend it.
-

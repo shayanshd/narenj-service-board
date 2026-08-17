@@ -45,9 +45,8 @@ The database and indexed queries are adequate, but manual onboarding, demo-style
 
 ### At 1,000 restaurants
 
-Fifteen-second polling from every waiter and kitchen screen amplifies idle reads, and each dashboard currently loads the branch's whole active view. A single globally shared D1 write path becomes a contention and operational-risk point. The service needs push delivery, paged/incremental reads, queues for noncritical work, tenant-aware database partitioning, SLOs, tracing, and automated tenant provisioning/restore tests.
+Fifteen-second polling from every waiter and kitchen screen amplifies idle reads, and each dashboard currently loads the branch's whole active view. A single SQLite file on one Railway volume cannot scale horizontally and becomes a contention and operational-risk point. The service needs PostgreSQL with row-level security, push delivery, paged/incremental reads, queues for noncritical work, SLOs, tracing, and automated tenant provisioning/restore tests.
 
 ### At 100,000 restaurants
 
 A single application/database deployment and one universal operational process are no longer credible. Tenant routing, regional data residency, sharded or per-tenant storage, an event pipeline, fleet-wide schema rollout, abuse controls, compliance, support tooling, and disaster recovery become product systems of their own. The existing command and tenant identifiers can survive; the shared physical runtime cannot.
-
