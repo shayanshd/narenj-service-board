@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1787001492143,
+      "tag": "0000_cloudy_squirrel_girl",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1787001684711,
+      "tag": "0001_curved_speed",
+      "breakpoints": true
+    }
+  ]
+}

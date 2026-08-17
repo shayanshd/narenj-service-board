@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `uq_orders_open_table` ON `orders` (`restaurant_id`,`branch_id`,`table_id`) WHERE "orders"."status" = 'open';
