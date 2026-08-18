@@ -109,6 +109,10 @@ h1 { margin-bottom: 0; font-size: 26px; letter-spacing: -1.1px; }
 .ready-label, .served-label { padding: 4px 6px; border-radius: 6px; font-size: 7px; font-weight: 700; }
 .ready-label { color: var(--green); background: var(--green-soft); }
 .served-label { color: #78837b; background: #f0f1ee; }
+.order-item-state { display: flex; align-items: center; gap: 6px; }
+.serve-item-button { min-height: 27px; padding: 0 9px; border: 1px solid var(--green); border-radius: 7px; background: var(--green); color: white; font-size: 7px; font-weight: 800; cursor: pointer; }
+.serve-item-button:hover { background: #175b40; }
+.serve-item-button:disabled { opacity: .55; cursor: wait; }
 .primary-action { width: 100%; min-height: 42px; margin-top: 10px; border: 0; border-radius: 11px; background: var(--green); color: white; font-size: 10px; font-weight: 800; cursor: pointer; box-shadow: 0 8px 18px rgba(31,106,75,.18); }
 .primary-action:hover { background: #175b40; }
 .primary-action span { margin-left: 5px; font-size: 15px; }

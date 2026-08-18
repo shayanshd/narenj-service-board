@@ -1,6 +1,6 @@
 # Narenj — restaurant service board
 
-Narenj is a Persian-first, multi-tenant order hand-off for table-service restaurants. A waiter adds an item to a table, the kitchen moves it from new to preparing to ready, and the dining room sees the change without replacing the whole order.
+Narenj is a Persian-first, multi-tenant order hand-off for table-service restaurants. A waiter adds an item to a table, the kitchen moves it from new to preparing to ready, and the waiter confirms delivery. Serving the final active item closes the order and releases the table for the next customer.
 
 The product deliberately stops before checkout. The rationale, alternatives, and accepted trade-offs are in [DECISIONS.md](./DECISIONS.md); the agreed pre-build boundary is in [SCOPE.md](./SCOPE.md).
 
@@ -36,7 +36,7 @@ To enable the optional model-generated shift handover, copy `.env.example` to `.
 - **Runtime:** Node.js server routes built with vinext and packaged in the repository's Dockerfile for Railway.
 - **Data:** SQLite migrations generated from a Drizzle domain schema. Railway stores the database in a persistent volume mounted at `/data`; WAL mode and a busy timeout protect a single application replica. Tenant-owned rows carry `restaurant_id`; operational rows also carry `branch_id`.
 - **Identity:** short-lived opaque session tokens are stored only as SHA-256 hashes. The HTTP-only, `SameSite=Strict` cookie resolves the actor, restaurant, branch, and role on the server.
-- **Writes:** narrow commands (`add_item`, `transition_item`, `set_availability`) replace whole-order saves. Additions use idempotency keys; updates use versions and return `409` on stale state.
+- **Writes:** narrow commands (`add_item`, `transition_item`, `set_availability`) replace whole-order saves. Additions use idempotency keys; updates use versions and return `409` on stale state. Kitchen staff can progress preparation; only dining-room staff can confirm service, and the final service confirmation closes the order atomically if no active items remain.
 - **AI:** a manager-only endpoint sends bounded branch aggregates—not customer notes or raw order text—to a structured-output model. It uses a timeout, no response storage, schema validation, and a deterministic fallback.
 
 The critical boundary is server-side: the client never supplies an authoritative restaurant, branch, or role. Every read and mutation includes tenant predicates, and unknown or unauthorized object IDs fail as `404` so they do not reveal whether another tenant's record exists.
@@ -52,7 +52,7 @@ npm run test:workflow  # live waiter-to-kitchen workflow test
 npm run db:generate    # generate a migration after schema edits
 ```
 
-The workflow test signs in as a waiter, adds an item, retries the same command, checks that a known second-tenant menu ID is hidden, confirms waiter role denial, then signs in as kitchen and progresses the exact item through `preparing` and `ready`. It also proves stale and invalid transitions return conflicts.
+The workflow test signs in as a waiter, adds an item, retries the same command, checks that a known second-tenant menu ID is hidden, and confirms role boundaries in both directions. Kitchen progresses items through `preparing` and `ready`; the waiter marks them served. It proves the last item closes the order, the table can immediately receive a different order, and stale transitions return conflicts.
 
 I did not unit-test presentational CSS, the model's prose quality, or every browser/device combination. Visual styling is better checked by rendering the real product; model output is treated as untrusted and schema-validated; device and assistive-technology coverage needs a dedicated compatibility pass. Payment, tax, inventory, printer, and full-offline behavior are intentionally outside this release.
 

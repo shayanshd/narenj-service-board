@@ -88,20 +88,33 @@ async function addItem(actor: ActorContext, payload: Record<string, unknown>, re
 }
 
 async function transitionItem(actor: ActorContext, payload: Record<string, unknown>, requestId: string) {
-  requireAction(actor, "transition_item");
   requireExactKeys(payload, ["action", "itemId", "toStatus", "version"]);
   const itemId = typeof payload.itemId === "string" ? payload.itemId : "";
   const toStatus = payload.toStatus;
   const version = payload.version;
   if (!itemId || !isKitchenStatus(toStatus) || !Number.isInteger(version)) throw new InputError("Invalid transition payload");
+  if (toStatus === "served") requireAction(actor, "serve_item");
+  else if (toStatus === "preparing" || toStatus === "ready") requireAction(actor, "progress_kitchen_item");
+  else throw new InputError("Unsupported transition target");
   const d1 = getD1();
-  const item = await d1.prepare("SELECT id, status, version FROM order_items WHERE id = ? AND restaurant_id = ? AND branch_id = ? LIMIT 1").bind(itemId, actor.restaurantId, actor.branchId).first<{ id: string; status: KitchenStatus; version: number }>();
+  const item = await d1.prepare("SELECT id, order_id AS orderId, status, version FROM order_items WHERE id = ? AND restaurant_id = ? AND branch_id = ? LIMIT 1").bind(itemId, actor.restaurantId, actor.branchId).first<{ id: string; orderId: string; status: KitchenStatus; version: number }>();
   if (!item) throw new AuthorizationError();
   requireTransition(item.status, toStatus);
   const update = await d1.prepare("UPDATE order_items SET status = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND restaurant_id = ? AND branch_id = ? AND version = ? RETURNING version, updated_at AS updatedAt").bind(toStatus, itemId, actor.restaurantId, actor.branchId, Number(version)).first<{ version: number; updatedAt: string }>();
   if (!update) throw new ConflictError("این سفارش روی دستگاه دیگری تغییر کرده است. صفحه را تازه کنید.");
-  await audit(d1, requestId, actor, "order_item.transition", "order_item", itemId, "ok").run();
-  return { item: { id: itemId, status: toStatus, version: update.version, updatedAt: update.updatedAt } };
+  let orderClosed = false;
+  if (toStatus === "served") {
+    const closed = await d1.prepare(`UPDATE orders SET status = 'closed', closed_at = CURRENT_TIMESTAMP, version = version + 1
+      WHERE id = ? AND restaurant_id = ? AND branch_id = ? AND status = 'open'
+      AND NOT EXISTS (
+        SELECT 1 FROM order_items
+        WHERE order_id = orders.id AND restaurant_id = ? AND branch_id = ?
+        AND status NOT IN ('served', 'cancelled')
+      )`).bind(item.orderId, actor.restaurantId, actor.branchId, actor.restaurantId, actor.branchId).run();
+    orderClosed = Boolean(closed.meta.changes);
+  }
+  await audit(d1, requestId, actor, toStatus === "served" ? "order_item.serve" : "order_item.progress", "order_item", itemId, "ok").run();
+  return { item: { id: itemId, status: toStatus, version: update.version, updatedAt: update.updatedAt }, orderClosed };
 }
 
 async function setAvailability(actor: ActorContext, payload: Record<string, unknown>, requestId: string) {

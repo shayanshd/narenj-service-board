@@ -115,7 +115,7 @@ export default function NarenjApp() {
           <div className="top-actions"><span className="role-pill">{roleLabel[data.actor.role]}</span><span className="branch-pill">{data.branch.name}</span><button className="refresh-button" aria-label="تازه‌سازی" onClick={() => void load()}>↻</button></div>
         </header>
 
-        {view === "floor" && <FloorView data={data} selectedTableId={selectedTableId} onSelect={setSelectedTableId} onAdd={() => setAddOpen(true)} />}
+        {view === "floor" && <FloorView data={data} selectedTableId={selectedTableId} busy={busy} onSelect={setSelectedTableId} onAdd={() => setAddOpen(true)} onServe={(item) => void mutate({ action: "transition_item", itemId: item.id, toStatus: "served", version: item.version }, `«${item.itemName}» تحویل شد؛ اگر آخرین قلم بود، میز آزاد شد.`)} />}
         {view === "kitchen" && <KitchenView data={data} busy={busy} onTransition={(item, toStatus) => void mutate({ action: "transition_item", itemId: item.id, toStatus, version: item.version }, `«${item.itemName}» بروزرسانی شد.`)} />}
         {view === "menu" && <MenuView data={data} busy={busy} onToggle={(item) => void mutate({ action: "set_availability", menuItemId: item.id, available: !item.available, version: item.version }, `وضعیت «${item.name}» تغییر کرد.`)} />}
         {view === "shift" && <ShiftView data={data} />}
@@ -144,7 +144,7 @@ function NavButton({ active, icon, label, count, urgent, onClick }: { active: bo
   return <button className={`nav-item ${active ? "active" : ""}`} onClick={onClick}><span className="nav-icon">{icon}</span>{label}{count && <span className={`nav-count ${urgent ? "urgent" : ""}`}>{fa.format(Number(count))}</span>}</button>;
 }
 
-function FloorView({ data, selectedTableId, onSelect, onAdd }: { data: Dashboard; selectedTableId: string; onSelect: (id: string) => void; onAdd: () => void }) {
+function FloorView({ data, selectedTableId, busy, onSelect, onAdd, onServe }: { data: Dashboard; selectedTableId: string; busy: string; onSelect: (id: string) => void; onAdd: () => void; onServe: (item: OrderItem) => void }) {
   const openByTable = new Map(data.orders.map((order) => [order.tableId, order]));
   const selectedTable = data.tables.find((table) => table.id === selectedTableId) ?? data.tables[0];
   const selectedOrder = openByTable.get(selectedTable.id);
@@ -157,13 +157,13 @@ function FloorView({ data, selectedTableId, onSelect, onAdd }: { data: Dashboard
     <div className="content-grid"><div className="tables-grid">{data.tables.map((table) => {
       const order = openByTable.get(table.id); const items = order ? data.items.filter((item) => item.orderId === order.id) : []; const state = table.id === selectedTable.id ? "selected" : tableState(items); const label = tableLabel(items);
       return <button className={`table-card ${state}`} key={table.id} onClick={() => onSelect(table.id)} aria-pressed={table.id === selectedTable.id}><div className="table-topline"><span className="table-number">{fa.format(table.number)}</span><span className={`state-badge ${state}`}>{label}</span></div><h3>میز {fa.format(table.number)}</h3><p>{fa.format(table.seats)} نفر</p>{order && <div className="table-meta"><span>{fa.format(items.reduce((sum, item) => sum + item.quantity, 0))} قلم</span><span>از {faTime(order.openedAt)}</span></div>}</button>;
-    })}</div><OrderPanel table={selectedTable} order={selectedOrder} items={selectedItems} onAdd={onAdd} /></div>
+    })}</div><OrderPanel table={selectedTable} order={selectedOrder} items={selectedItems} busy={busy} onAdd={onAdd} onServe={onServe} /></div>
   </>;
 }
 
-function OrderPanel({ table, order, items, onAdd }: { table: DiningTable; order?: Order; items: OrderItem[]; onAdd: () => void }) {
+function OrderPanel({ table, order, items, busy, onAdd, onServe }: { table: DiningTable; order?: Order; items: OrderItem[]; busy: string; onAdd: () => void; onServe: (item: OrderItem) => void }) {
   return <aside className="order-panel"><div className="panel-heading"><div><span className="selected-kicker">انتخاب شده</span><h2>میز {fa.format(table.number)}</h2><p>{fa.format(table.seats)} نفر {order ? `· باز شده ساعت ${faTime(order.openedAt)}` : "· آماده پذیرش"}</p></div></div>
-    {items.length > 0 ? <><div className="progress-track"><span className="done">ثبت</span><i /><span className={items.some((item) => item.status === "preparing" || item.status === "ready" || item.status === "served") ? "done" : "current"}>آماده‌سازی</span><i /><span className={items.some((item) => item.status === "ready") ? "current" : ""}>سرو</span></div><div className="order-list">{items.map((item) => <article key={item.id}><span className="qty">{fa.format(item.quantity)}</span><div><strong>{item.itemName}</strong><small>{item.note || "بدون توضیح"}</small></div><span className={`${item.status}-label`}>{statusLabel[item.status]}</span></article>)}</div></> : <div className="empty-order"><span>＋</span><h3>این میز هنوز سفارشی ندارد</h3><p>اولین قلم را اضافه کنید تا سفارش باز شود.</p></div>}
+    {items.length > 0 ? <><div className="progress-track"><span className="done">ثبت</span><i /><span className={items.some((item) => item.status === "preparing" || item.status === "ready" || item.status === "served") ? "done" : "current"}>آماده‌سازی</span><i /><span className={items.some((item) => item.status === "ready") ? "current" : ""}>سرو</span></div><div className="order-list">{items.map((item) => <article key={item.id}><span className="qty">{fa.format(item.quantity)}</span><div><strong>{item.itemName}</strong><small>{item.note || "بدون توضیح"}</small></div><div className="order-item-state"><span className={`${item.status}-label`}>{statusLabel[item.status]}</span>{item.status === "ready" && <button className="serve-item-button" disabled={Boolean(busy)} onClick={() => onServe(item)}>تحویل شد</button>}</div></article>)}</div></> : <div className="empty-order"><span>＋</span><h3>این میز هنوز سفارشی ندارد</h3><p>اولین قلم را اضافه کنید تا سفارش باز شود.</p></div>}
     <button className="primary-action" onClick={onAdd}><span>＋</span> افزودن به سفارش</button><p className="safe-note"><span>✓</span> افزودن اقلام، سفارش قبلی را بازنویسی نمی‌کند.</p></aside>;
 }
 

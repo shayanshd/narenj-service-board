@@ -111,3 +111,13 @@ This is a living record. Each entry states the decision, why it was made, the st
 **Alternative considered:** A managed identity provider with invitation, recovery, revocation, rate limits, multi-factor authentication, and audit hooks.
 
 **Trade-off accepted:** The current credentials and password comparison are demonstration infrastructure, not a production identity lifecycle. This was correct for reviewability but wrong for real customer data; production onboarding must replace it rather than extend it.
+
+## D-012 — Let the dining room confirm delivery and release the table automatically
+
+**Decision:** Kitchen staff own `new → preparing → ready`. A waiter or manager owns `ready → served` after physical delivery. When the final non-cancelled item is served, the server closes the order and releases the table automatically.
+
+**Reason:** The kitchen can prove preparation is complete but cannot prove the dish reached the customer. The waiter is closest to that fact. Automatic closure removes a separate easy-to-forget “close table” step while ensuring a table does not remain permanently occupied by a completed order.
+
+**Alternative considered:** Let the kitchen mark items served, require a manager to close tables, or add a separate manual “close order” button for the waiter.
+
+**Trade-off accepted:** This release treats service completion—not payment—as the end of the operational order. A later checkout module may need a separate bill/payment lifecycle, and mistaken delivery confirmations will need the planned correction and audit workflow.

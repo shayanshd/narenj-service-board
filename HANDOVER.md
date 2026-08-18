@@ -6,7 +6,7 @@ Open Narenj at [https://narenj-production.up.railway.app](https://narenj-product
 
 ## What has been delivered
 
-Narenj replaces the paper or spoken hand-off between the dining room and kitchen for table orders. A waiter can select a table and send a menu item with a quantity and short note. The kitchen sees the ticket, marks the item as being prepared, and marks it ready. The waiter sees that result on the table board. A manager can temporarily mark menu items unavailable and produce a shift handover summary.
+Narenj replaces the paper or spoken hand-off between the dining room and kitchen for table orders. A waiter can select a table and send a menu item with a quantity and short note. The kitchen sees the ticket, marks the item as being prepared, and marks it ready. The waiter sees that result, delivers it, and confirms **تحویل شد** on the table board. When the last active item is confirmed, the order closes and the table becomes available for the next customer. A manager can temporarily mark menu items unavailable and produce a shift handover summary.
 
 The demonstration already contains a realistic Persian menu, 12 tables, staff roles, active orders, and history. Each staff member sees only the tools for their job.
 
@@ -15,8 +15,9 @@ The demonstration already contains a realistic Persian menu, 12 tables, staff ro
 1. The waiter signs in with the waiter account, opens **وضعیت سالن**, and selects a table.
 2. They choose **افزودن به سفارش**, select a menu item, quantity, and optional kitchen note, then send it. Adding a new item does not replace earlier items.
 3. Kitchen staff sign in on the kitchen display. For each new item they choose **شروع**, then **آماده شد** when it is ready.
-4. The waiter checks the table board. Ready tables are highlighted for service.
-5. The manager can use **منو و موجودی** to hide an unavailable item from new orders, and **خلاصه شیفت** for a short handover.
+4. The waiter checks the table board. Ready tables are highlighted; after physically delivering each ready item, they choose **تحویل شد**. Kitchen staff must not confirm delivery because they cannot see whether the food reached the table.
+5. When every active item has been delivered, Narenj closes that order automatically and shows the table as free. A later item added to that table starts a new customer order.
+6. The manager can use **منو و موجودی** to hide an unavailable item from new orders, and **خلاصه شیفت** for a short handover.
 
 If a button reports a conflict, refresh the screen before acting again; another staff member changed the same item first. If internet access is completely lost, switch to the restaurant's agreed paper/verbal fallback until both devices can reconnect. Do not keep clicking blindly.
 
