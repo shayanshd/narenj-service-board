@@ -121,4 +121,18 @@ test("served items stay in the customer visit until the waiter releases the tabl
   assert.ok(nextVisit);
   const nextClosed = await api("/api/app", waiterCookie, { method: "POST", body: JSON.stringify({ action: "close_order", orderId: nextVisit.id, version: nextVisit.version }) });
   assert.equal(nextClosed.response.status, 200);
+
+  const managerCookie = await login("manager@narenj.demo", "Manager123!");
+  const handover = await api("/api/shift-summary", managerCookie, { method: "POST" });
+  assert.equal(handover.response.status, 200);
+  assert.ok(Array.isArray(handover.body.metrics.categoryLeaders));
+  assert.ok(handover.body.metrics.categoryLeaders.length >= 3, "seeded sales should produce a leader for each Narenj category");
+  assert.equal(new Set(handover.body.metrics.categoryLeaders.map((leader) => leader.category)).size, handover.body.metrics.categoryLeaders.length, "each category must appear once");
+  assert.equal("topItem" in handover.body.metrics, false, "the summary must not expose a misleading overall bestseller");
+  for (const leader of handover.body.metrics.categoryLeaders) {
+    assert.ok(leader.quantity > 0 && leader.items.length > 0);
+    assert.ok(handover.body.summary.summary.includes(leader.category), `summary must mention ${leader.category}`);
+    assert.ok(leader.items.every((name) => handover.body.summary.summary.includes(name)), `summary must preserve leaders and ties for ${leader.category}`);
+    assert.ok(leader.items.every((name) => name !== "ماهی سفید"), "Restaurant B sales must not leak into Restaurant A summary");
+  }
 });

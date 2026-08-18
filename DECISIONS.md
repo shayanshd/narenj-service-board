@@ -131,3 +131,13 @@ This is a living record. Each entry states the decision, why it was made, the st
 **Alternative considered:** Create a new order for every round, infer departure from inactivity, or release automatically after the current items are served.
 
 **Trade-off accepted:** Staff can forget to end a visit, so a later release reminder may be useful. The safe failure is a table that remains visibly occupied and can be corrected by dining-room staff, rather than an occupied table being offered to a new customer.
+
+## D-014 — Compare product frequency within menu categories
+
+**Decision:** Replace the single overall top item with one leader set per menu category. Sum ordered quantities inside each category, preserve ties, show the calculated leaders directly, and accept model prose only when it mentions every category and tied leader.
+
+**Reason:** Cross-category volume answers the wrong management question: a frequently attached drink can dominate the count while hiding which main course or starter customers preferred. Category-scoped leaders support menu preparation and availability decisions without pretending unlike products are direct substitutes.
+
+**Alternative considered:** Keep one overall bestseller, rank by revenue, or send raw order rows to the model and ask it to discover the groupings.
+
+**Trade-off accepted:** This is an operational order-frequency view, not margin, paid-sales, or time-window analysis. Category assignment comes from the current menu record; a later analytical model should snapshot category at order time and support explicit shift/date filters.

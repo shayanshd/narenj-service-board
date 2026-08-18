@@ -18,7 +18,7 @@ The demonstration already contains a realistic Persian menu, 12 tables, staff ro
 4. The waiter checks the table board. Ready tables are highlighted; after physically delivering each ready item, they choose **تحویل شد**. Kitchen staff must not confirm delivery because they cannot see whether the food reached the table.
 5. If the same customer asks for another item, use **افزودن به سفارش** again. It is added to the same open table visit even when all earlier items are already served.
 6. Only when the customer has left, choose **پایان سرویس و آزاد کردن میز**. Narenj refuses this action if any item is still new, preparing, or ready. The next item added after release starts a new customer order.
-7. The manager can use **منو و موجودی** to hide an unavailable item from new orders, and **خلاصه شیفت** for a short handover.
+7. The manager can use **منو و موجودی** to hide an unavailable item from new orders, and **خلاصه شیفت** for a short handover. The handover shows the most frequently ordered item inside each menu category—such as main course, starter, and drink—rather than treating one drink as the restaurant's overall bestseller.
 
 If a button reports a conflict, refresh the screen before acting again; another staff member changed the same item first. If internet access is completely lost, switch to the restaurant's agreed paper/verbal fallback until both devices can reconnect. Do not keep clicking blindly.
 

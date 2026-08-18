@@ -27,7 +27,7 @@ I also rejected saving an entire order document after every edit. It is quick to
 - Seeded a second restaurant with a known identifier, then tested that its data stayed absent and its ID failed closed.
 - Ran a live API workflow from waiter login through idempotent add, role denial, kitchen preparation, readiness, and stale/invalid conflicts.
 - Ran ESLint, TypeScript checking, the production build, and a rendered HTML/metadata test.
-- Exercised the AI endpoint with no provider key and verified that the deterministic fallback returned useful metrics instead of blocking.
+- Exercised the AI endpoint with no provider key and verified that the deterministic fallback returned category-level item leaders instead of blocking. The workflow checks that every category and tied leader appears, the old overall bestseller field is absent, and another tenant's item cannot leak into the handover.
 - Rendered and visually inspected the application and social card.
 
 Model prose is not accepted as fact or as an action. Runtime model output is parsed against a strict JSON shape and labelled by source; calculated totals remain server-owned.
@@ -35,4 +35,3 @@ Model prose is not accepted as fact or as an action. Runtime model output is par
 ## Architecture that was my own judgment
 
 The product boundary, selected operational hand-off, three-role split, restaurant/branch ownership model, append-command API, version conflict behavior, currency storage rule, partial-offline claim, AI placement, and scaling limitations were architectural decisions rather than AI defaults. AI accelerated expression and implementation; it did not decide what the customer should trust.
-
