@@ -4,7 +4,11 @@ Narenj is a Persian-first, multi-tenant order hand-off for table-service restaur
 
 The product deliberately stops before checkout. The rationale, alternatives, and accepted trade-offs are in [DECISIONS.md](./DECISIONS.md); the agreed pre-build boundary is in [SCOPE.md](./SCOPE.md).
 
+Reviewer links and the final delivery checklist are collected in [SUBMISSION.md](./SUBMISSION.md). A timed, why-first recording plan is in [WALKTHROUGH.md](./WALKTHROUGH.md).
+
 ## Open the demo
+
+Repository: [https://github.com/shayanshd/narenj-service-board](https://github.com/shayanshd/narenj-service-board)
 
 Live Railway deployment: [https://narenj-production.up.railway.app](https://narenj-production.up.railway.app)
 
@@ -20,10 +24,11 @@ Seed data includes two restaurants, more than one branch, 12 tables, a Persian m
 
 ## Local setup
 
-Prerequisite: Node.js 22.13 or newer. From a fresh clone, one command installs dependencies and starts the app:
+Prerequisite: Node.js 22.13 or newer. From a fresh clone, install the locked dependencies and start the app:
 
 ```bash
-npm install && npm run dev
+npm ci
+npm run dev
 ```
 
 Open `http://localhost:3000`. The local SQLite database is migrated and seeded on its first API request.
@@ -45,14 +50,17 @@ The critical boundary is server-side: the client never supplies an authoritative
 
 ```bash
 npm run lint           # static rules and accessibility checks
-npx tsc --noEmit       # TypeScript boundary check
+npm run typecheck      # TypeScript boundary check
 npm run build          # production build
 npm test               # build plus rendered-page and metadata test
 npm run test:workflow  # live waiter-to-kitchen workflow test
+npm run verify         # lint + typecheck + production/rendered test
 npm run db:generate    # generate a migration after schema edits
 ```
 
-The workflow test signs in as a waiter, adds an item, retries the same command, checks that a known second-tenant menu ID is hidden, and confirms role boundaries in both directions. Kitchen progresses items through `preparing` and `ready`; the waiter marks them served. It proves a later request from the same seated customer joins the existing order, premature closure is rejected, explicit end of service releases the table, the next customer receives a new order, and stale transitions return conflicts. It also verifies the manager handover returns one leader set per category, preserves ties, mentions every leader, and excludes the second tenant.
+The workflow test targets a running app. Start `npm run dev` in one terminal, then run `npm run test:workflow` in another. To test a different instance, set `NARENJ_TEST_BASE_URL`.
+
+The workflow signs in as a waiter, adds an item, retries the same command, checks that a known second-tenant menu ID is hidden, and confirms role boundaries in both directions. Kitchen progresses items through `preparing` and `ready`; the waiter marks them served. It proves a later request from the same seated customer joins the existing order, premature closure is rejected, explicit end of service releases the table, the next customer receives a new order, and stale transitions return conflicts. It also verifies the manager handover returns one leader set per category, preserves ties, mentions every leader, and excludes the second tenant.
 
 I did not unit-test presentational CSS, the model's prose quality, or every browser/device combination. Visual styling is better checked by rendering the real product; model output is treated as untrusted and schema-validated; device and assistive-technology coverage needs a dedicated compatibility pass. Payment, tax, inventory, printer, and full-offline behavior are intentionally outside this release.
 
@@ -80,3 +88,5 @@ Set `OPENAI_API_KEY` as a Railway secret only if model-generated shift handovers
 - `domain/` — authorization policy and state-machine validation
 - `tests/` — rendered output and full workflow proof
 - `SCOPE.md`, `DECISIONS.md`, `AI_USAGE.md`, `HANDOVER.md` — product and delivery reasoning
+- `SUBMISSION.md` — reviewer links, credentials, and final external gates
+- `WALKTHROUGH.md` — timed 7-minute recording script
