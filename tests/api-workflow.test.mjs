@@ -24,7 +24,7 @@ async function api(path, cookie, init = {}) {
   return { response, body };
 }
 
-test("complete waiter-to-kitchen-to-service workflow releases and reuses a table", async () => {
+test("served items stay in the customer visit until the waiter releases the table", async () => {
   const waiterCookie = await login("waiter@narenj.demo", "Waiter123!");
   const initial = await api("/api/app", waiterCookie);
   assert.equal(initial.response.status, 200);
@@ -80,25 +80,45 @@ test("complete waiter-to-kitchen-to-service workflow releases and reuses a table
   assert.equal(waiterServe.response.status, 200);
   assert.equal(waiterServe.body.item.status, "served");
 
-  async function openPrepareServeAndClose(menuItemId) {
-    const created = await api("/api/app", waiterCookie, { method: "POST", body: JSON.stringify({
-      action: "add_item", tableId: reusableTable.id, menuItemId, quantity: 1, note: "", idempotencyKey: crypto.randomUUID(),
-    }) });
-    assert.equal(created.response.status, 200);
-    const orderId = created.body.item.orderId;
-    const preparingItem = await api("/api/app", kitchenCookie, { method: "POST", body: JSON.stringify({ action: "transition_item", itemId: created.body.item.id, toStatus: "preparing", version: 1 }) });
+  async function prepareAndServe(item) {
+    const preparingItem = await api("/api/app", kitchenCookie, { method: "POST", body: JSON.stringify({ action: "transition_item", itemId: item.id, toStatus: "preparing", version: 1 }) });
     assert.equal(preparingItem.response.status, 200);
-    const readyItem = await api("/api/app", kitchenCookie, { method: "POST", body: JSON.stringify({ action: "transition_item", itemId: created.body.item.id, toStatus: "ready", version: 2 }) });
+    const readyItem = await api("/api/app", kitchenCookie, { method: "POST", body: JSON.stringify({ action: "transition_item", itemId: item.id, toStatus: "ready", version: 2 }) });
     assert.equal(readyItem.response.status, 200);
-    const servedItem = await api("/api/app", waiterCookie, { method: "POST", body: JSON.stringify({ action: "transition_item", itemId: created.body.item.id, toStatus: "served", version: 3 }) });
+    const servedItem = await api("/api/app", waiterCookie, { method: "POST", body: JSON.stringify({ action: "transition_item", itemId: item.id, toStatus: "served", version: 3 }) });
     assert.equal(servedItem.response.status, 200);
-    assert.equal(servedItem.body.orderClosed, true, "serving the last active item must close its order");
-    const afterService = await api("/api/app", waiterCookie);
-    assert.ok(!afterService.body.orders.some((order) => order.tableId === reusableTable.id), "closed order must release the table");
-    return orderId;
   }
 
-  const firstClosedOrderId = await openPrepareServeAndClose("menu-doogh");
-  const secondClosedOrderId = await openPrepareServeAndClose("menu-salad");
-  assert.notEqual(secondClosedOrderId, firstClosedOrderId, "the released table must accept a new customer in a new order");
+  const firstItem = await api("/api/app", waiterCookie, { method: "POST", body: JSON.stringify({ action: "add_item", tableId: reusableTable.id, menuItemId: "menu-doogh", quantity: 1, note: "", idempotencyKey: crypto.randomUUID() }) });
+  assert.equal(firstItem.response.status, 200);
+  await prepareAndServe(firstItem.body.item);
+
+  const afterFirstService = await api("/api/app", waiterCookie);
+  const openVisit = afterFirstService.body.orders.find((order) => order.id === firstItem.body.item.orderId);
+  assert.ok(openVisit, "serving all current items must not end a customer visit");
+
+  const secondItem = await api("/api/app", waiterCookie, { method: "POST", body: JSON.stringify({ action: "add_item", tableId: reusableTable.id, menuItemId: "menu-salad", quantity: 1, note: "", idempotencyKey: crypto.randomUUID() }) });
+  assert.equal(secondItem.response.status, 200);
+  assert.equal(secondItem.body.item.orderId, openVisit.id, "a later request from the same customer must append to the same order");
+
+  const prematureClose = await api("/api/app", waiterCookie, { method: "POST", body: JSON.stringify({ action: "close_order", orderId: openVisit.id, version: openVisit.version }) });
+  assert.equal(prematureClose.response.status, 409, "a table with an active item must not be released");
+  await prepareAndServe(secondItem.body.item);
+
+  const kitchenClose = await api("/api/app", kitchenCookie, { method: "POST", body: JSON.stringify({ action: "close_order", orderId: openVisit.id, version: openVisit.version }) });
+  assert.equal(kitchenClose.response.status, 404, "kitchen must not end a dining-room visit");
+  const closedVisit = await api("/api/app", waiterCookie, { method: "POST", body: JSON.stringify({ action: "close_order", orderId: openVisit.id, version: openVisit.version }) });
+  assert.equal(closedVisit.response.status, 200);
+
+  const afterClose = await api("/api/app", waiterCookie);
+  assert.ok(!afterClose.body.orders.some((order) => order.id === openVisit.id), "explicit end of service must release the table");
+
+  const nextCustomerItem = await api("/api/app", waiterCookie, { method: "POST", body: JSON.stringify({ action: "add_item", tableId: reusableTable.id, menuItemId: "menu-doogh", quantity: 1, note: "", idempotencyKey: crypto.randomUUID() }) });
+  assert.equal(nextCustomerItem.response.status, 200);
+  assert.notEqual(nextCustomerItem.body.item.orderId, openVisit.id, "the next customer must receive a new order");
+  await prepareAndServe(nextCustomerItem.body.item);
+  const nextVisit = (await api("/api/app", waiterCookie)).body.orders.find((order) => order.id === nextCustomerItem.body.item.orderId);
+  assert.ok(nextVisit);
+  const nextClosed = await api("/api/app", waiterCookie, { method: "POST", body: JSON.stringify({ action: "close_order", orderId: nextVisit.id, version: nextVisit.version }) });
+  assert.equal(nextClosed.response.status, 200);
 });

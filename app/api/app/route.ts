@@ -42,6 +42,7 @@ export async function POST(request: Request) {
     let result: unknown;
     if (action === "add_item") result = await addItem(actor, payload, requestId);
     else if (action === "transition_item") result = await transitionItem(actor, payload, requestId);
+    else if (action === "close_order") result = await closeOrder(actor, payload, requestId);
     else if (action === "set_availability") result = await setAvailability(actor, payload, requestId);
     else throw new InputError("Unknown action");
     log({ requestId, actor, action: String(action), result: "ok", durationMs: Date.now() - startedAt });
@@ -97,24 +98,38 @@ async function transitionItem(actor: ActorContext, payload: Record<string, unkno
   else if (toStatus === "preparing" || toStatus === "ready") requireAction(actor, "progress_kitchen_item");
   else throw new InputError("Unsupported transition target");
   const d1 = getD1();
-  const item = await d1.prepare("SELECT id, order_id AS orderId, status, version FROM order_items WHERE id = ? AND restaurant_id = ? AND branch_id = ? LIMIT 1").bind(itemId, actor.restaurantId, actor.branchId).first<{ id: string; orderId: string; status: KitchenStatus; version: number }>();
+  const item = await d1.prepare("SELECT id, status, version FROM order_items WHERE id = ? AND restaurant_id = ? AND branch_id = ? LIMIT 1").bind(itemId, actor.restaurantId, actor.branchId).first<{ id: string; status: KitchenStatus; version: number }>();
   if (!item) throw new AuthorizationError();
   requireTransition(item.status, toStatus);
   const update = await d1.prepare("UPDATE order_items SET status = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND restaurant_id = ? AND branch_id = ? AND version = ? RETURNING version, updated_at AS updatedAt").bind(toStatus, itemId, actor.restaurantId, actor.branchId, Number(version)).first<{ version: number; updatedAt: string }>();
   if (!update) throw new ConflictError("این سفارش روی دستگاه دیگری تغییر کرده است. صفحه را تازه کنید.");
-  let orderClosed = false;
-  if (toStatus === "served") {
-    const closed = await d1.prepare(`UPDATE orders SET status = 'closed', closed_at = CURRENT_TIMESTAMP, version = version + 1
-      WHERE id = ? AND restaurant_id = ? AND branch_id = ? AND status = 'open'
-      AND NOT EXISTS (
-        SELECT 1 FROM order_items
-        WHERE order_id = orders.id AND restaurant_id = ? AND branch_id = ?
-        AND status NOT IN ('served', 'cancelled')
-      )`).bind(item.orderId, actor.restaurantId, actor.branchId, actor.restaurantId, actor.branchId).run();
-    orderClosed = Boolean(closed.meta.changes);
-  }
   await audit(d1, requestId, actor, toStatus === "served" ? "order_item.serve" : "order_item.progress", "order_item", itemId, "ok").run();
-  return { item: { id: itemId, status: toStatus, version: update.version, updatedAt: update.updatedAt }, orderClosed };
+  return { item: { id: itemId, status: toStatus, version: update.version, updatedAt: update.updatedAt } };
+}
+
+async function closeOrder(actor: ActorContext, payload: Record<string, unknown>, requestId: string) {
+  requireAction(actor, "close_table_order");
+  requireExactKeys(payload, ["action", "orderId", "version"]);
+  const orderId = typeof payload.orderId === "string" ? payload.orderId : "";
+  const version = payload.version;
+  if (!orderId || !Number.isInteger(version)) throw new InputError("Invalid close-order payload");
+  const d1 = getD1();
+  const order = await d1.prepare("SELECT id, version FROM orders WHERE id = ? AND restaurant_id = ? AND branch_id = ? AND status = 'open' LIMIT 1").bind(orderId, actor.restaurantId, actor.branchId).first<{ id: string; version: number }>();
+  if (!order) throw new AuthorizationError();
+  const closed = await d1.prepare(`UPDATE orders SET status = 'closed', closed_at = CURRENT_TIMESTAMP, version = version + 1
+    WHERE id = ? AND restaurant_id = ? AND branch_id = ? AND status = 'open' AND version = ?
+    AND NOT EXISTS (
+      SELECT 1 FROM order_items
+      WHERE order_id = orders.id AND restaurant_id = ? AND branch_id = ?
+      AND status NOT IN ('served', 'cancelled')
+    )`).bind(orderId, actor.restaurantId, actor.branchId, Number(version), actor.restaurantId, actor.branchId).run();
+  if (!closed.meta.changes) {
+    const active = await d1.prepare("SELECT 1 AS active FROM order_items WHERE order_id = ? AND restaurant_id = ? AND branch_id = ? AND status NOT IN ('served', 'cancelled') LIMIT 1").bind(orderId, actor.restaurantId, actor.branchId).first();
+    if (active) throw new ConflictError("تا وقتی قلم آماده‌نشده یا تحویل‌نشده وجود دارد، میز آزاد نمی‌شود.");
+    throw new ConflictError("این سفارش روی دستگاه دیگری تغییر کرده است. صفحه را تازه کنید.");
+  }
+  await audit(d1, requestId, actor, "order.close", "order", orderId, "ok").run();
+  return { order: { id: orderId, status: "closed", version: order.version + 1 } };
 }
 
 async function setAvailability(actor: ActorContext, payload: Record<string, unknown>, requestId: string) {

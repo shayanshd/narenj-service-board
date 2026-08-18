@@ -5,6 +5,7 @@ export type Action =
   | "view_kitchen"
   | "progress_kitchen_item"
   | "serve_item"
+  | "close_table_order"
   | "set_availability"
   | "view_shift_summary";
 
@@ -18,8 +19,8 @@ export type ActorContext = {
 };
 
 const permissions: Record<Role, ReadonlySet<Action>> = {
-  manager: new Set(["view_floor", "add_order_item", "view_kitchen", "progress_kitchen_item", "serve_item", "set_availability", "view_shift_summary"]),
-  waiter: new Set(["view_floor", "add_order_item", "serve_item"]),
+  manager: new Set(["view_floor", "add_order_item", "view_kitchen", "progress_kitchen_item", "serve_item", "close_table_order", "set_availability", "view_shift_summary"]),
+  waiter: new Set(["view_floor", "add_order_item", "serve_item", "close_table_order"]),
   kitchen: new Set(["view_kitchen", "progress_kitchen_item"]),
 };
 

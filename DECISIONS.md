@@ -112,12 +112,22 @@ This is a living record. Each entry states the decision, why it was made, the st
 
 **Trade-off accepted:** The current credentials and password comparison are demonstration infrastructure, not a production identity lifecycle. This was correct for reviewability but wrong for real customer data; production onboarding must replace it rather than extend it.
 
-## D-012 — Let the dining room confirm delivery and release the table automatically
+## D-012 — Rejected after scenario review: release the table when the final item is served
 
-**Decision:** Kitchen staff own `new → preparing → ready`. A waiter or manager owns `ready → served` after physical delivery. When the final non-cancelled item is served, the server closes the order and releases the table automatically.
+**Decision:** Do not use the final `served` item as the trigger to close the table order.
 
-**Reason:** The kitchen can prove preparation is complete but cannot prove the dish reached the customer. The waiter is closest to that fact. Automatic closure removes a separate easy-to-forget “close table” step while ensuring a table does not remain permanently occupied by a completed order.
+**Reason:** A customer can finish one round and order another while remaining seated. “Every current dish was delivered” describes item progress; it does not prove the customer visit ended. Automatic closure would split one visit into multiple orders and briefly advertise an occupied table as free.
 
-**Alternative considered:** Let the kitchen mark items served, require a manager to close tables, or add a separate manual “close order” button for the waiter.
+**Alternative considered:** Automatic closure was initially implemented to eliminate forgotten table closures.
 
-**Trade-off accepted:** This release treats service completion—not payment—as the end of the operational order. A later checkout module may need a separate bill/payment lifecycle, and mistaken delivery confirmations will need the planned correction and audit workflow.
+**Trade-off accepted:** The waiter needs one explicit end-of-service action, but that action represents a fact the software cannot safely infer.
+
+## D-013 — Separate dish delivery from the end of the table visit
+
+**Decision:** Kitchen staff own `new → preparing → ready`; a waiter or manager owns `ready → served`. Served items remain on the open order. A waiter or manager separately chooses **پایان سرویس و آزاد کردن میز** after the customer leaves, and the server allows closure only when no item is new, preparing, or ready.
+
+**Reason:** This preserves one order for the whole seated visit, so later requests append to the correct customer context. It also gives table availability an honest meaning: free means the visit has explicitly ended, not merely that the latest dishes were delivered.
+
+**Alternative considered:** Create a new order for every round, infer departure from inactivity, or release automatically after the current items are served.
+
+**Trade-off accepted:** Staff can forget to end a visit, so a later release reminder may be useful. The safe failure is a table that remains visibly occupied and can be corrected by dining-room staff, rather than an occupied table being offered to a new customer.
